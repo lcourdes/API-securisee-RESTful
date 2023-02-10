@@ -18,7 +18,7 @@ from django.urls import path, include
 from rest_framework_nested import routers
 from rest_framework_simplejwt.views import TokenObtainPairView
 from authentication.views import CreateUserAPIView
-from API.views import ProjectViewset, UsersViewset
+from API.views import ProjectViewset, UsersViewset, IssuesViewset
 
 router = routers.SimpleRouter()
 router.register('projects', ProjectViewset, basename='projects')
@@ -27,6 +27,7 @@ project_router = routers.NestedSimpleRouter(
     r'projects',
     lookup='project')
 project_router.register(r'users', UsersViewset, basename='users')
+project_router.register(r'issues', IssuesViewset, basename='issues')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

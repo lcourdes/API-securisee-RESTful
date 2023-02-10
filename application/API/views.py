@@ -1,10 +1,11 @@
 from django.db import transaction
+from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
-from API.models import Project, Contributor
-from API.serializers import ProjectSerializer, ProjectDetailSerializer, ContributorSerializer, UserSerializer
+from API.models import Project, Contributor, Issue
+from API.serializers import ProjectSerializer, ProjectDetailSerializer, ContributorSerializer, UserSerializer, IssueSerializer
 from authentication.models import User
 from rest_framework.exceptions import PermissionDenied
 
@@ -32,7 +33,7 @@ class ProjectViewset(ModelViewSet):
     @transaction.atomic
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
-        if request.user.id != instance.author_user_id:
+        if request.user != instance.author_user_id:
             raise PermissionDenied
         for attribut, value in request.data.items():
             setattr(instance, attribut, value)
@@ -42,7 +43,7 @@ class ProjectViewset(ModelViewSet):
     @transaction.atomic
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        if request.user.id != instance.author_user_id:
+        if request.user != instance.author_user_id:
             raise PermissionDenied
         instance.delete()
         return Response(status=status.HTTP_200_OK)
@@ -53,13 +54,13 @@ class UsersViewset(ModelViewSet):
 
     def get_queryset(self, *args, **kwargs):
         project_id = self.kwargs.get("project_pk")
-        instance = Project.objects.get(id=project_id)
+        instance = get_object_or_404(Project, id=project_id, contributors=self.request.user)
         users_queryset = User.objects.filter(contributions=instance)
         return users_queryset
     
     @transaction.atomic
     def create(self, request, *args, **kwargs):
-        project = Project.objects.get(id=self.kwargs.get("project_pk"))
+        project = get_object_or_404(Project, id=self.kwargs.get("project_pk"), contributors=self.request.user)
         serializer = ContributorSerializer(data=request.data, context={'project': project})
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -67,10 +68,46 @@ class UsersViewset(ModelViewSet):
     
     @transaction.atomic
     def destroy(self, request, *args, **kwargs):
-        project = Project.objects.get(id=self.kwargs.get("project_pk"))
-        if request.user.id != project.author_user_id:
+        project = get_object_or_404(Project, id=self.kwargs.get("project_pk"), contributors=self.request.user)
+        if request.user != project.author_user_id:
             raise PermissionDenied
         user = User.objects.get(id=self.kwargs.get("pk"))
         contributor = Contributor.objects.get(project_id=project, user_id=user)
         contributor.delete()
+        return Response(status=status.HTTP_200_OK)
+
+class IssuesViewset(ModelViewSet):
+    serializer_class = IssueSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self, *args, **kwargs):
+        projects = Project.objects.filter(contributors=self.request.user)
+        project = get_object_or_404(projects, id=self.kwargs.get("project_pk"))
+        return Issue.objects.filter(project_id=project)
+    
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        projects = Project.objects.filter(contributors=self.request.user)
+        project = get_object_or_404(projects, id=self.kwargs.get("project_pk"))
+        serializer = IssueSerializer(data=request.data, context={'project': project, 'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(status=status.HTTP_200_OK)
+    
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if request.user != instance.author_user_id:
+            raise PermissionDenied
+        for attribut, value in request.data.items():
+            setattr(instance, attribut, value)
+        instance.save()
+        return Response(status=status.HTTP_200_OK)
+    
+    @transaction.atomic
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if request.user != instance.author_user_id:
+            raise PermissionDenied
+        instance.delete()
         return Response(status=status.HTTP_200_OK)

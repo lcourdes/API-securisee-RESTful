@@ -1,6 +1,6 @@
-from rest_framework.serializers import ModelSerializer, SerializerMethodField
+from rest_framework.serializers import ModelSerializer, SerializerMethodField, ValidationError
 from django.db import transaction
-from API.models import Project, Contributor
+from API.models import Project, Contributor, Issue
 from authentication.models import User
 
 
@@ -17,7 +17,7 @@ class ProjectSerializer(ModelSerializer):
     @transaction.atomic
     def create(self, data):
         project = Project.objects.create(**data)
-        project.author_user_id = self.context.get('request').user.id
+        project.author_user_id = self.context.get('request').user
         project.save()
         Contributor.objects.create(
             user_id=self.context.get('request').user,
@@ -45,10 +45,33 @@ class ContributorSerializer(ModelSerializer):
     
     @transaction.atomic
     def create(self, data, *args, **kwargs):
+        project = self.context.get('project')
+        user = data['user_id']
+        if Contributor.objects.filter(project_id=project, user_id=user).exists():
+            raise ValidationError('This user is already contributing to project.')
         contributor = Contributor.objects.create(
-            project_id=self.context.get('project'),
-            user_id=data['user_id'],
+            project_id=project,
+            user_id=user,
             permission='C',
             )
         contributor.save()
         return contributor
+
+class IssueSerializer(ModelSerializer):
+    class Meta:
+        model = Issue
+        fields = ['id', 'created_time', 'title', 'description', 'tag', 'priority', 'status', 'author_user_id', 'assignee_user_id']
+
+    @transaction.atomic
+    def create(self, data, *args, **kwargs):
+        author = self.context.get('request').user
+        project = self.context.get('project')
+        if 'assignee_user_id' in data:
+            if not Contributor.objects.filter(project_id=project, user_id=data['assignee_user_id']).exists():
+                raise ValidationError('The assignee must be a contributor to project.')          
+            
+        issue = Issue.objects.create(**data, author_user_id=author, project_id=project,)
+        if not 'assignee_user_id' in data:
+            setattr(issue, 'assignee_user_id', author)
+        issue.save()
+        return issue
