@@ -4,15 +4,15 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
+from API.permissions import IsAuthor, IsSafeMethod
 from API.models import Project, Contributor, Issue
 from API.serializers import ProjectSerializer, ProjectDetailSerializer, ContributorSerializer, UserSerializer, IssueSerializer
 from authentication.models import User
-from rest_framework.exceptions import PermissionDenied
 
 class ProjectViewset(ModelViewSet):
     serializer_class = ProjectSerializer
     detail_serializer_class = ProjectDetailSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated & (IsAuthor|IsSafeMethod)]
 
     def get_queryset(self):
         queryset = Project.objects.filter(contributors=self.request.user)
@@ -33,8 +33,6 @@ class ProjectViewset(ModelViewSet):
     @transaction.atomic
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
-        if request.user != instance.author_user_id:
-            raise PermissionDenied
         for attribut, value in request.data.items():
             setattr(instance, attribut, value)
         instance.save()
@@ -43,14 +41,12 @@ class ProjectViewset(ModelViewSet):
     @transaction.atomic
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        if request.user != instance.author_user_id:
-            raise PermissionDenied
         instance.delete()
         return Response(status=status.HTTP_200_OK)
 
 class UsersViewset(ModelViewSet):
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated & IsAuthor]
 
     def get_queryset(self, *args, **kwargs):
         project_id = self.kwargs.get("project_pk")
@@ -69,16 +65,14 @@ class UsersViewset(ModelViewSet):
     @transaction.atomic
     def destroy(self, request, *args, **kwargs):
         project = get_object_or_404(Project, id=self.kwargs.get("project_pk"), contributors=self.request.user)
-        if request.user != project.author_user_id:
-            raise PermissionDenied
-        user = User.objects.get(id=self.kwargs.get("pk"))
+        user = self.get_object()
         contributor = Contributor.objects.get(project_id=project, user_id=user)
         contributor.delete()
         return Response(status=status.HTTP_200_OK)
 
 class IssuesViewset(ModelViewSet):
     serializer_class = IssueSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated & IsAuthor]
 
     def get_queryset(self, *args, **kwargs):
         projects = Project.objects.filter(contributors=self.request.user)
@@ -97,8 +91,6 @@ class IssuesViewset(ModelViewSet):
     @transaction.atomic
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
-        if request.user != instance.author_user_id:
-            raise PermissionDenied
         for attribut, value in request.data.items():
             setattr(instance, attribut, value)
         instance.save()
@@ -107,7 +99,5 @@ class IssuesViewset(ModelViewSet):
     @transaction.atomic
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        if request.user != instance.author_user_id:
-            raise PermissionDenied
         instance.delete()
         return Response(status=status.HTTP_200_OK)
