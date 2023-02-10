@@ -2,7 +2,12 @@ from rest_framework.serializers import ModelSerializer, SerializerMethodField
 from django.db import transaction
 from API.models import Project, Contributor
 from authentication.models import User
-from authentication.serializers import UserSerializer
+
+
+class UserSerializer(ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'first_name', 'last_name', 'email']
 
 class ProjectSerializer(ModelSerializer):
     class Meta:
@@ -38,3 +43,12 @@ class ContributorSerializer(ModelSerializer):
         model = Contributor
         fields = ['user_id', 'role', 'permission']
     
+    @transaction.atomic
+    def create(self, data, *args, **kwargs):
+        contributor = Contributor.objects.create(
+            project_id=self.context.get('project'),
+            user_id=data['user_id'],
+            permission='C',
+            )
+        contributor.save()
+        return contributor

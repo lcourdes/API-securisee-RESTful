@@ -21,7 +21,7 @@ class Contributor(models.Model):
 
     user_id = models.ForeignKey(User, on_delete=models.CASCADE)
     project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
-    role = models.CharField(max_length=30)
+    role = models.CharField(max_length=30, blank=True, null=True)
     permission = models.CharField(max_length=20, choices=ContributorType.choices, default=ContributorType.CONTRIBUTOR)
 
     class Meta:
