@@ -1,6 +1,6 @@
 from rest_framework.serializers import ModelSerializer, SerializerMethodField, ValidationError
 from django.db import transaction
-from API.models import Project, Contributor, Issue
+from API.models import Project, Contributor, Issue, Comment
 from authentication.models import User
 
 
@@ -75,3 +75,19 @@ class IssueSerializer(ModelSerializer):
             setattr(issue, 'assignee_user_id', author)
         issue.save()
         return issue
+
+class CommentSerializer(ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = ['id', 'created_time', 'description', 'author_user_id']
+    
+    @transaction.atomic
+    def create(self, data, *args, **kwargs):
+        author = self.context.get('request').user
+        issue = self.context.get('issue')
+        comment = Comment.objects.create(**data, author_user_id=author, issue_id=issue)
+        print(comment.description)
+        print('!!!!!!!!!!!!!!!!!')
+        print(self.context.get('request').data)
+        comment.save()
+        return comment

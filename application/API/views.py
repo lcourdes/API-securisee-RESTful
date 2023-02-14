@@ -5,8 +5,8 @@ from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
 from API.permissions import IsAuthor, IsSafeMethod
-from API.models import Project, Contributor, Issue
-from API.serializers import ProjectSerializer, ProjectDetailSerializer, ContributorSerializer, UserSerializer, IssueSerializer
+from API.models import Project, Contributor, Issue, Comment
+from API.serializers import ProjectSerializer, ProjectDetailSerializer, ContributorSerializer, UserSerializer, IssueSerializer, CommentSerializer
 from authentication.models import User
 
 class ProjectViewset(ModelViewSet):
@@ -84,6 +84,40 @@ class IssuesViewset(ModelViewSet):
         projects = Project.objects.filter(contributors=self.request.user)
         project = get_object_or_404(projects, id=self.kwargs.get("project_pk"))
         serializer = IssueSerializer(data=request.data, context={'project': project, 'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(status=status.HTTP_200_OK)
+    
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        for attribut, value in request.data.items():
+            setattr(instance, attribut, value)
+        instance.save()
+        return Response(status=status.HTTP_200_OK)
+    
+    @transaction.atomic
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.delete()
+        return Response(status=status.HTTP_200_OK)
+
+class CommentsViewset(ModelViewSet):
+    serializer_class = CommentSerializer
+    permission_classes = [IsAuthenticated & IsAuthor]
+
+    def get_queryset(self, *args, **kwargs):
+        projects = Project.objects.filter(contributors=self.request.user)
+        project = get_object_or_404(projects, id=self.kwargs.get("project_pk"))
+        issue = get_object_or_404(Issue, project_id=project, id=self.kwargs.get("issue_pk"))
+        return Comment.objects.filter(issue_id=issue)
+    
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        projects = Project.objects.filter(contributors=self.request.user)
+        project = get_object_or_404(projects, id=self.kwargs.get("project_pk"))
+        issue = get_object_or_404(Issue, project_id=project, id=self.kwargs.get("issue_pk"))
+        serializer = CommentSerializer(data=request.data, context={'issue': issue, 'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(status=status.HTTP_200_OK)

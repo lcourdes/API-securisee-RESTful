@@ -18,7 +18,7 @@ from django.urls import path, include
 from rest_framework_nested import routers
 from rest_framework_simplejwt.views import TokenObtainPairView
 from authentication.views import CreateUserAPIView
-from API.views import ProjectViewset, UsersViewset, IssuesViewset
+from API.views import ProjectViewset, UsersViewset, IssuesViewset, CommentsViewset
 
 router = routers.SimpleRouter()
 router.register('projects', ProjectViewset, basename='projects')
@@ -28,6 +28,11 @@ project_router = routers.NestedSimpleRouter(
     lookup='project')
 project_router.register(r'users', UsersViewset, basename='users')
 project_router.register(r'issues', IssuesViewset, basename='issues')
+issue_router = routers.NestedSimpleRouter(
+    project_router,
+    r'issues',
+    lookup='issue')
+issue_router.register(r'comments', CommentsViewset, basename='comments')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -35,4 +40,5 @@ urlpatterns = [
     path('signup/', CreateUserAPIView.as_view(), name='signup'),
     path('', include(router.urls)),
     path('', include(project_router.urls)),
+    path('', include(issue_router.urls)),
 ]

@@ -52,3 +52,9 @@ class Issue(models.Model):
     author_user_id = models.ForeignKey(User, on_delete=models.CASCADE, related_name='author', blank=True, null=True)
     assignee_user_id = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assignee', blank=True, null=True)
     created_time = models.DateTimeField(auto_now_add=True)
+
+class Comment(models.Model):
+    description = models.CharField(max_length=1000)
+    author_user_id = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
+    issue_id = models.ForeignKey(Issue, on_delete=models.CASCADE)
+    created_time = models.DateTimeField(auto_now_add=True)
