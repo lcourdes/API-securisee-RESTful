@@ -9,10 +9,22 @@ class UserSerializer(ModelSerializer):
         model = User
         fields = ['id', 'username', 'first_name', 'last_name', 'email']
 
+class UserShortSerializer(ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username']
+
 class ProjectSerializer(ModelSerializer):
     class Meta:
         model = Project
         fields = ['id', 'title', 'type', 'author_user_id']
+    
+class ProjectDetailSerializer(ModelSerializer):
+    contributors = SerializerMethodField()
+
+    class Meta:
+        model = Project
+        fields = ['title', 'description', 'type', 'author_user_id', 'contributors']
     
     @transaction.atomic
     def create(self, data):
@@ -26,17 +38,21 @@ class ProjectSerializer(ModelSerializer):
             role='')
         return project
 
-class ProjectDetailSerializer(ModelSerializer):
-    contributors = SerializerMethodField()
-
-    class Meta:
-        model = Project
-        fields = ['title', 'description', 'type', 'author_user_id', 'contributors']
-
     def get_contributors(self, instance):
         users_queryset = User.objects.filter(contributions=instance)
-        serializer = UserSerializer(users_queryset, many=True)
+        serializer = UserShortSerializer(users_queryset, many=True)
         return serializer.data
+    
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        if validated_data.get('title'):
+            instance.title = validated_data.get('title')
+        if validated_data.get('description'):
+            instance.description = validated_data.get('description')
+        if validated_data.get('type'):
+            instance.type = validated_data.get('type')
+        instance.save()
+        return instance
 
 class ContributorSerializer(ModelSerializer):
     class Meta:
@@ -75,6 +91,23 @@ class IssueSerializer(ModelSerializer):
             setattr(issue, 'assignee_user_id', author)
         issue.save()
         return issue
+    
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        if validated_data.get('title'):
+            instance.title = validated_data.get('title')
+        if validated_data.get('description'):
+            instance.description = validated_data.get('description')
+        if validated_data.get('tag'):
+            instance.type = validated_data.get('tag')
+        if validated_data.get('priority'):
+            instance.type = validated_data.get('priority')
+        if validated_data.get('status'):
+            instance.type = validated_data.get('status')
+        if validated_data.get('assignee_user_id'):
+            instance.type = validated_data.get('assignee_user_id')
+        instance.save()
+        return instance
 
 class CommentSerializer(ModelSerializer):
     class Meta:
@@ -86,8 +119,11 @@ class CommentSerializer(ModelSerializer):
         author = self.context.get('request').user
         issue = self.context.get('issue')
         comment = Comment.objects.create(**data, author_user_id=author, issue_id=issue)
-        print(comment.description)
-        print('!!!!!!!!!!!!!!!!!')
-        print(self.context.get('request').data)
         comment.save()
         return comment
+    
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        instance.description = validated_data.get('description')
+        instance.save()
+        return instance

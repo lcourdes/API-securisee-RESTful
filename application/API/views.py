@@ -25,17 +25,18 @@ class ProjectViewset(ModelViewSet):
 
     @transaction.atomic
     def create(self, request):
-        serializer = ProjectSerializer(data=request.data, context={'request': request})
+        serializer = ProjectDetailSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(status=status.HTTP_200_OK)
 
     @transaction.atomic
     def update(self, request, *args, **kwargs):
+        partial = True
         instance = self.get_object()
-        for attribut, value in request.data.items():
-            setattr(instance, attribut, value)
-        instance.save()
+        serializer = ProjectDetailSerializer(instance=instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
         return Response(status=status.HTTP_200_OK)
 
     @transaction.atomic
@@ -46,7 +47,7 @@ class ProjectViewset(ModelViewSet):
 
 class UsersViewset(ModelViewSet):
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated & IsAuthor]
+    permission_classes = [IsAuthenticated & (IsAuthor|IsSafeMethod)]
 
     def get_queryset(self, *args, **kwargs):
         project_id = self.kwargs.get("project_pk")
@@ -90,10 +91,11 @@ class IssuesViewset(ModelViewSet):
     
     @transaction.atomic
     def update(self, request, *args, **kwargs):
+        partial = True
         instance = self.get_object()
-        for attribut, value in request.data.items():
-            setattr(instance, attribut, value)
-        instance.save()
+        serializer = IssueSerializer(instance=instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
         return Response(status=status.HTTP_200_OK)
     
     @transaction.atomic
@@ -104,7 +106,7 @@ class IssuesViewset(ModelViewSet):
 
 class CommentsViewset(ModelViewSet):
     serializer_class = CommentSerializer
-    permission_classes = [IsAuthenticated & IsAuthor]
+    permission_classes = [IsAuthenticated & (IsAuthor|IsSafeMethod)]
 
     def get_queryset(self, *args, **kwargs):
         projects = Project.objects.filter(contributors=self.request.user)
@@ -125,9 +127,9 @@ class CommentsViewset(ModelViewSet):
     @transaction.atomic
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
-        for attribut, value in request.data.items():
-            setattr(instance, attribut, value)
-        instance.save()
+        serializer = CommentSerializer(instance=instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
         return Response(status=status.HTTP_200_OK)
     
     @transaction.atomic
