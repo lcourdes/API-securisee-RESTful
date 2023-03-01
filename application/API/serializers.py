@@ -99,13 +99,13 @@ class IssueSerializer(ModelSerializer):
         if validated_data.get('description'):
             instance.description = validated_data.get('description')
         if validated_data.get('tag'):
-            instance.type = validated_data.get('tag')
+            instance.tag = validated_data.get('tag')
         if validated_data.get('priority'):
-            instance.type = validated_data.get('priority')
+            instance.priority = validated_data.get('priority')
         if validated_data.get('status'):
-            instance.type = validated_data.get('status')
+            instance.status = validated_data.get('status')
         if validated_data.get('assignee_user_id'):
-            instance.type = validated_data.get('assignee_user_id')
+            instance.assignee_user_id = validated_data.get('assignee_user_id')
         instance.save()
         return instance
 
