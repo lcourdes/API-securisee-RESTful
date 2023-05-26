@@ -9,6 +9,7 @@ from API.models import Project, Contributor, Issue, Comment
 from API.serializers import ProjectSerializer, ProjectDetailSerializer, ContributorSerializer, UserSerializer, IssueSerializer, CommentSerializer
 from authentication.models import User
 
+
 class ProjectViewset(ModelViewSet):
     serializer_class = ProjectSerializer
     detail_serializer_class = ProjectDetailSerializer
@@ -25,18 +26,22 @@ class ProjectViewset(ModelViewSet):
 
     @transaction.atomic
     def create(self, request):
-        serializer = ProjectDetailSerializer(data=request.data, context={'request': request})
+        serializer = ProjectDetailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        project = serializer.save(author_user_id=request.user)
+        Contributor.objects.create(
+            user_id=request.user,
+            project_id=project,
+            permission='A',
+            role='')
         return Response(status=status.HTTP_200_OK)
 
     @transaction.atomic
     def update(self, request, *args, **kwargs):
-        partial = True
         instance = self.get_object()
-        serializer = ProjectDetailSerializer(instance=instance, data=request.data, partial=partial)
+        serializer = ProjectDetailSerializer(instance=instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
+        serializer.save()
         return Response(status=status.HTTP_200_OK)
 
     @transaction.atomic
@@ -60,7 +65,7 @@ class UsersViewset(ModelViewSet):
         project = get_object_or_404(Project, id=self.kwargs.get("project_pk"), contributors=self.request.user)
         serializer = ContributorSerializer(data=request.data, context={'project': project})
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        serializer.save(project_id=project)
         return Response(status=status.HTTP_200_OK)
     
     @transaction.atomic
@@ -70,6 +75,7 @@ class UsersViewset(ModelViewSet):
         contributor = Contributor.objects.get(project_id=project, user_id=user)
         contributor.delete()
         return Response(status=status.HTTP_200_OK)
+
 
 class IssuesViewset(ModelViewSet):
     serializer_class = IssueSerializer
@@ -86,16 +92,17 @@ class IssuesViewset(ModelViewSet):
         project = get_object_or_404(projects, id=self.kwargs.get("project_pk"))
         serializer = IssueSerializer(data=request.data, context={'project': project, 'request': request})
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        new_issue = serializer.save(author_user_id=self.request.user, project_id=project)
+        if not new_issue.assignee_user_id:
+            new_issue.assignee_user_id = self.request.user
         return Response(status=status.HTTP_200_OK)
     
     @transaction.atomic
     def update(self, request, *args, **kwargs):
-        partial = True
         instance = self.get_object()
-        serializer = IssueSerializer(instance=instance, data=request.data, partial=partial)
+        serializer = IssueSerializer(instance=instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
+        serializer.save()
         return Response(status=status.HTTP_200_OK)
     
     @transaction.atomic
@@ -103,6 +110,7 @@ class IssuesViewset(ModelViewSet):
         instance = self.get_object()
         instance.delete()
         return Response(status=status.HTTP_200_OK)
+
 
 class CommentsViewset(ModelViewSet):
     serializer_class = CommentSerializer
@@ -119,17 +127,17 @@ class CommentsViewset(ModelViewSet):
         projects = Project.objects.filter(contributors=self.request.user)
         project = get_object_or_404(projects, id=self.kwargs.get("project_pk"))
         issue = get_object_or_404(Issue, project_id=project, id=self.kwargs.get("issue_pk"))
-        serializer = CommentSerializer(data=request.data, context={'issue': issue, 'request': request})
+        serializer = CommentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        serializer.save(author_user_id=request.user, issue_id=issue)
         return Response(status=status.HTTP_200_OK)
     
     @transaction.atomic
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
-        serializer = CommentSerializer(instance=instance, data=request.data)
+        serializer = CommentSerializer(instance=instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
+        serializer.save()
         return Response(status=status.HTTP_200_OK)
     
     @transaction.atomic
