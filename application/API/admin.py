@@ -3,4 +3,3 @@ from API.models import Project, Contributor
 
 admin.site.register(Project)
 admin.site.register(Contributor)
-

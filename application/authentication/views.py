@@ -4,6 +4,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from authentication.serializers import UserCreateSerializer
 
+
 class CreateUserAPIView(APIView):
     permission_classes = (AllowAny,)
 
