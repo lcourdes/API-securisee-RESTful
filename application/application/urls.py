@@ -16,7 +16,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework_nested import routers
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView,\
+    TokenRefreshView
 from authentication.views import CreateUserAPIView
 from API.views import ProjectViewset, UsersViewset, IssuesViewset,\
     CommentsViewset
@@ -37,6 +38,7 @@ issue_router.register(r'comments', CommentsViewset, basename='comments')
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('login/', TokenObtainPairView.as_view(), name='login'),
+    path('login/refresh/', TokenRefreshView.as_view(), name='refresh_token'),
     path('signup/', CreateUserAPIView.as_view(), name='signup'),
     path('', include(router.urls)),
     path('', include(project_router.urls)),
