@@ -59,6 +59,8 @@ class IssueSerializer(ModelSerializer):
 
     def validate_assignee_user_id(self, value):
         project = self.context.get('project')
+        print(project)
+        print(Contributor.objects.filter(project_id=project))
         if not Contributor.objects.filter(project_id=project,
                                           user_id=value.id).exists():
             raise ValidationError('The assignee must be a contributor ' +

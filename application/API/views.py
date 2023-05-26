@@ -86,7 +86,7 @@ class UsersViewset(ModelViewSet):
 
 class IssuesViewset(ModelViewSet):
     serializer_class = IssueSerializer
-    permission_classes = [IsAuthenticated & IsAuthor]
+    permission_classes = [IsAuthenticated & (IsAuthor | IsSafeMethod)]
 
     def get_queryset(self, *args, **kwargs):
         projects = Project.objects.filter(contributors=self.request.user)
@@ -98,20 +98,23 @@ class IssuesViewset(ModelViewSet):
         projects = Project.objects.filter(contributors=self.request.user)
         project = get_object_or_404(projects, id=self.kwargs.get("project_pk"))
         serializer = IssueSerializer(data=request.data,
-                                     context={'project': project,
-                                              'request': request})
+                                     context={'project': project})
         serializer.is_valid(raise_exception=True)
         new_issue = serializer.save(author_user_id=self.request.user,
                                     project_id=project)
         if not new_issue.assignee_user_id:
             new_issue.assignee_user_id = self.request.user
+            new_issue.save()
         return Response(status=status.HTTP_200_OK)
 
     @transaction.atomic
     def update(self, request, *args, **kwargs):
+        projects = Project.objects.filter(contributors=self.request.user)
+        project = get_object_or_404(projects, id=self.kwargs.get("project_pk"))
         instance = self.get_object()
         serializer = IssueSerializer(instance=instance, data=request.data,
-                                     partial=True)
+                                     partial=True,
+                                     context={'project': project})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(status=status.HTTP_200_OK)
